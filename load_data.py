@@ -7,7 +7,6 @@ import pandas as pd
 import sklearn.preprocessing as preprocessing
 from collections import namedtuple
 from sklearn.preprocessing import StandardScaler
-from toy_data import generate_toy_data
 
 
 def load_adult(smaller=False, scaler=True):
