@@ -5,7 +5,7 @@ from scipy.optimize import minimize, LinearConstraint
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import KFold
 
-from load_data import load_adult, load_toy_test
+from load_data import load_adult
 
 
 #################

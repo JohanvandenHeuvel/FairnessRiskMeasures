@@ -1,3 +1,7 @@
+"""
+This code is from https://github.com/jmikko/fair_ERM, including the adult dataset.
+"""
+
 import numpy as np
 import pandas as pd
 import sklearn.preprocessing as preprocessing
@@ -145,14 +149,3 @@ def load_adult(smaller=False, scaler=True):
         )
     return data, data_test
 
-
-def load_toy_test():
-    # Load toy test
-    n_samples = 100 * 2
-    n_samples_low = 20 * 2
-    n_dimensions = 10
-    X, y, sensible_feature_id, _, _ = generate_toy_data(
-        n_samples=n_samples, n_samples_low=n_samples_low, n_dimensions=n_dimensions
-    )
-    data = namedtuple("_", "data, target")(X, y)
-    return data, data
