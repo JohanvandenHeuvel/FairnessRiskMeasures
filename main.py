@@ -92,56 +92,28 @@ def main():
     y_test = test_data.target
     y_test = np.expand_dims(y_test, 1)
 
-    # sensitive_feature = 9
-    # sensitive_feature_values = np.unique(x_train[:, sensitive_feature])
-    # mask = []
-    # for i, value in enumerate(sensitive_feature_values):
-    #     mask.append(x_train[:, sensitive_feature] == value)
+    sensitive_feature = 9
+    sensitive_feature_values = np.unique(x_train[:, sensitive_feature])
+    mask = []
+    for i, value in enumerate(sensitive_feature_values):
+        mask.append(x_train[:, sensitive_feature] == value)
 
-    # p = np.random.permutation(len(x_train))
-    # x_train = x_train[p][:1000]
-    # y_train = y_train[p][:1000]
-    #
-    # p = np.random.permutation(len(x_test))
-    # x_test = x_test[p][:1000]
-    # y_test = y_test[p][:1000]
+    # find optimal solution
+    x0 = np.zeros(x_train.shape[1])
+    f = lambda w: Expectation(
+        regularised_linear_scorer(w, x=x_train, y=y_train, loss=hinge_loss), subgroups=mask
+    )
+    print("Minimizing the objective...")
+    result = minimize(
+        f,
+        x0,
+        options={"disp": True, "return_all": True},
+    )
 
-    # f = lambda w: Expectation(
-    #     regularised_linear_scorer(w, x=x_train, y=y_train, loss=hinge_loss), subgroups=mask
-    # )
+    print(accuracy_score(y_train, predict(result.x, x_train, threshold=True)))
+    print(accuracy_score(y_test, predict(result.x, x_test, threshold=True)))
 
-
-    loss_list = [("L1", L1_loss), ("L2", L2_loss), ("L3", square_hinge_loss)]
-    for name, loss in loss_list:
-        print(f"===={name}====")
-        # find optimal solution
-        x0 = np.zeros(x_train.shape[1])
-        f = lambda w: regularised_linear_scorer(w, x=x_train, y=y_train, loss=loss)
-        result = minimize(
-            f,
-            x0,
-            options={"disp": True, "return_all": True},
-        )
-
-        [
-            print(
-                f"{n}: {regularised_linear_scorer(result.x, x_train, y_train, loss=l)}"
-            )
-            for n, l in loss_list
-        ]
-        print(accuracy_score(y_train, predict(result.x, x_train, threshold=True)))
-        print(accuracy_score(y_test, predict(result.x, x_test, threshold=True)))
-
-    # iter_results = result["allvecs"]
-    # func_results = []
-    # for vec in iter_results:
-    #     func_results.append(
-    #         regularised_linear_scorer(vec, x_train, y_train, loss=L2_loss)
-    #     )
-
-    # result = minimize(f, x0, options={"disp": True})
-
-    print("done!")
+    print("Done!")
 
 
 if __name__ == "__main__":

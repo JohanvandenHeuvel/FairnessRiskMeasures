@@ -4,7 +4,7 @@ from numpy.linalg import norm
 
 def hinge_loss(actual, predicted):
     loss = np.array(1 - np.multiply(actual, predicted)).clip(0)
-    return np.mean(loss)
+    return loss
 
 
 def square_hinge_loss(actual, predicted):
