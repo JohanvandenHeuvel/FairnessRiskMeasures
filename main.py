@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from numpy.linalg import norm
 from scipy.optimize import minimize, LinearConstraint
 from sklearn.metrics import balanced_accuracy_score
@@ -27,6 +28,8 @@ def CVaR(
 ) -> float:
     """Conditional Value at Risk / superquantile
     Loss aggregator, analogous to E[X | X > alpha-quantile]
+
+    Set p=0, alpha=0 for the expected value
 
     :param subgroup_losses: losses per subgroup to aggregate over
     :param p: discard all subgroup risks lower then p
@@ -95,31 +98,6 @@ def get_data():
     return x_train, y_train, x_test, y_test
 
 
-# def constraint():
-#     # constraints = (LinearConstraint(np.eye(len(mask), 0, np.inf)))
-#     params[-1] + 1 / (1 - a) * np.mean(subgroup_loss_aggregation(
-#         regularised_linear_scorer(
-#             params[:-1], x=x_train, y=y_train, loss=hinge_loss
-#         ),
-#         subgroups=mask,
-#         p=params[-1],
-#     pass
-#     f = lambda params: np.sum(params)
-#     # set constraints
-#     cons = (
-#         {"type": "ineq", "fun": lambda w: w[:-1]},
-#         {
-#             "type": "ineq",
-#             "fun": lambda w: CVaR(
-#                 regularised_linear_scorer(w[:-1], x_train, y_train, square_hinge_loss),
-#                 subgroups=mask,
-#                 p=w[-1],
-#                 alpha=a
-#             ),
-#         },
-#     )
-
-
 def optimize(x, y, alpha, lmbda, verbose=False):
     # get the indices of the groups induced by the sensitive feature
     sensitive_feature = 9
@@ -140,16 +118,16 @@ def optimize(x, y, alpha, lmbda, verbose=False):
     return minimize(f, x0, options={"disp": verbose})
 
 
-def main(lambdas=None):
+def main(x_train, y_train, x_test, y_test, lambdas=None):
     if lambdas is None:
         lambdas = []
 
-    x_train, y_train, x_test, y_test = get_data()
-
+    accuracy = []
+    fairness_score = []
     # find optimal solution
-    optimal_lambdas = []
     for i, a in enumerate(np.arange(1, 10) / 10):
 
+        # if no lambdas are given find optimal lambdas using Cross-Validation
         if len(lambdas) == i:
             best_lambda = 0
             best_score = 0
@@ -175,7 +153,7 @@ def main(lambdas=None):
                     best_lambda = l
             lambdas.append(best_lambda)
 
-        print(f"Found optimal lambdas: {lambdas} for alphas {np.arange(1, 10)/10}")
+            print(f"Found optimal lambdas: {lambdas} for alphas {np.arange(1, 10)/10}")
 
         l = lambdas[i]
         result = optimize(x_train, y_train, alpha=a, lmbda=l, verbose=True)
@@ -202,21 +180,43 @@ def main(lambdas=None):
 
         print(f"p: {p}")
         y_predict = predict(w, x_train, threshold=True)
-        print(
-            f"Training data balanced accuracy: {balanced_accuracy_score(y_train, y_predict):0.2f}"
+        acc = balanced_accuracy_score(y_train, y_predict)
+        eo = np.abs(
+            np.mean(y_predict[mask_train[0]]) - np.mean(y_predict[mask_train[1]])
         )
-        print(
-            f"Training data equality of opportunity: {np.abs(np.mean(y_predict[mask_train[0]]) - np.mean(y_predict[mask_train[1]]))}"
-        )
+        print(f"Training data balanced accuracy: {acc:0.2f}")
+        print(f"Training data equality of opportunity: {eo}")
         y_predict = predict(w, x_test, threshold=True)
-        print(
-            f"Test data balanced accuracy: {balanced_accuracy_score(y_test, y_predict):0.2f}"
+        acc = balanced_accuracy_score(y_test, y_predict)
+        a = y_predict[mask_test[0]].clip(0)
+        b = y_predict[mask_test[1]].clip(0)
+        eo = np.abs(
+            np.mean(y_predict[mask_test[0]].clip(0))
+            - np.mean(y_predict[mask_test[1]].clip(0))
         )
-        print(
-            f"Test data equality of opportunity: {np.abs(np.mean(y_predict[mask_test[0]]) - np.mean(y_predict[mask_test[1]]))}"
-        )
+        print(f"Test data balanced accuracy: {acc:0.2f}")
+        print(f"Test data equality of opportunity: {eo}")
         print("<-- Done!")
+
+        accuracy.append(1 - acc)
+        fairness_score.append(eo)
+
+    return accuracy, fairness_score
 
 
 if __name__ == "__main__":
-    main(lambdas=[0.1] * 9)
+    x_train, y_train, x_test, y_test = get_data()
+    accuracy, fairness_score = main(x_train, y_train, x_test, y_test, lambdas=[0.1] * 9)
+
+    fig, axs = plt.subplots(2, figsize=(10, 10))
+    axs[0].plot(fairness_score)
+    axs[0].set_ylabel("Fairness EO violation")
+    axs[0].set_xlabel("alpha")
+    axs[0].set_xticklabels(np.arange(0, 10) / 10)
+
+    axs[1].plot(accuracy)
+    axs[1].set_ylabel("Balanced error")
+    axs[1].set_xlabel("alpha")
+    axs[1].set_xticklabels(np.arange(0, 10) / 10)
+
+    plt.show()
