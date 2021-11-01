@@ -29,7 +29,7 @@ def Expectation(losses: np.ndarray, subgroups: list) -> float:
 
 
 def CVaR(
-    subgroup_losses: np.ndarray, p: float, alpha: float, clip: bool = True
+    losses: np.ndarray, subgroups: list, p: float, alpha: float, clip: bool = True
 ) -> float:
     """Conditional Value at Risk / superquantile
     Loss aggregator, analogous to E[X | X > alpha-quantile]
@@ -40,12 +40,13 @@ def CVaR(
     :param clip: clip negative values to zero, this makes the function non-continuous
     :return: aggregated losses
     """
+    subgroup_losses = [losses[mask] for mask in subgroups]
 
     # compute the subgroup mean losses
     subgroup_mean_losses = np.zeros(len(subgroup_losses))
     for i, subgroup_loss in enumerate(subgroup_losses):
         # calculate the expected loss over the subgroup
-        mean = np.mean(subgroup_loss - p)
+        mean = np.mean(subgroup_loss - p) ** 2
         subgroup_mean_losses[i] = mean
 
     if clip:
@@ -100,8 +101,13 @@ def main():
 
     # find optimal solution
     x0 = np.zeros(x_train.shape[1])
-    f = lambda w: Expectation(
-        regularised_linear_scorer(w, x=x_train, y=y_train, loss=hinge_loss), subgroups=mask
+    # f = lambda w: Expectation(
+    #     regularised_linear_scorer(w, x=x_train, y=y_train, loss=hinge_loss),
+    #     subgroups=mask,
+    # )
+    f = lambda w: CVaR(
+        regularised_linear_scorer(w, x=x_train, y=y_train, loss=hinge_loss),
+        subgroups=mask, p=0.0, alpha=0.1
     )
     print("Minimizing the objective...")
     result = minimize(
@@ -110,8 +116,12 @@ def main():
         options={"disp": True, "return_all": True},
     )
 
-    print(accuracy_score(y_train, predict(result.x, x_train, threshold=True)))
-    print(accuracy_score(y_test, predict(result.x, x_test, threshold=True)))
+    print(
+        f"Training data accuracy: {accuracy_score(y_train, predict(result.x, x_train, threshold=True)):0.2f}"
+    )
+    print(
+        f"Test data accuracy: {accuracy_score(y_test, predict(result.x, x_test, threshold=True)):0.2f}"
+    )
 
     print("Done!")
 
