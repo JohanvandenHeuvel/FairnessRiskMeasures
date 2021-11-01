@@ -107,6 +107,7 @@ def optimize(x, y, alpha, lmbda, verbose=False):
         mask.append(x[:, sensitive_feature] == value)
 
     x0 = np.zeros(x.shape[1] + 1)
+    # set the function to minimize
     f = lambda params: CVaR(
         regularised_linear_scorer(params[:-1], x, y, square_hinge_loss, lmbd=lmbda),
         subgroups=mask,
@@ -188,8 +189,6 @@ def main(x_train, y_train, x_test, y_test, lambdas=None):
         print(f"Training data equality of opportunity: {eo}")
         y_predict = predict(w, x_test, threshold=True)
         acc = balanced_accuracy_score(y_test, y_predict)
-        a = y_predict[mask_test[0]].clip(0)
-        b = y_predict[mask_test[1]].clip(0)
         eo = np.abs(
             np.mean(y_predict[mask_test[0]].clip(0))
             - np.mean(y_predict[mask_test[1]].clip(0))
